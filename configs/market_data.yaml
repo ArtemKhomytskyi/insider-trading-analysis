@@ -1,0 +1,10 @@
+provider: none
+start_date: null
+end_date: null
+adjustment_policy: provider_adjusted_close_required
+retry_count: 2
+timeout: 30
+rate_limit_seconds: 0.0
+batch_size: 100
+forward_buffer_days: 370
+readiness_horizons: [5, 20, 60, 120, 252]

@@ -1,0 +1,3 @@
+database:
+  engine: sqlite
+  path: data/processed/insider_research.db

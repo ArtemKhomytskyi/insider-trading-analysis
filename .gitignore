@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local data (keep structure, ignore large/generated files)
+data/processed/*.db
+data/processed/*.db-journal
+data/exports/*
+!data/exports/.gitkeep
+data/raw/sec/**/*
+!data/raw/sec/.gitkeep
+
+# Secrets
+.env
+*.pem
+
+# Test artifacts
+.pytest-tmp/
+.pytest_cache/
+
+# Local data archives
+data/*.zip
+data/*.7z

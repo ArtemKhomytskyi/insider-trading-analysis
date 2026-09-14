@@ -1,0 +1,18 @@
+cleaning:
+  minimum_transaction_value: 10000
+  tiny_transaction_value: 10000
+  extreme_transaction_value: 10000000000
+  include_amendments_in_mvp: false
+  allowed_document_types_for_mvp:
+    - "4"
+  allowed_transaction_codes_for_mvp:
+    - "P"
+    - "S"
+  exclude_stale_filings_from_mvp: false
+  stale_filing_lag_days: 365
+
+validation:
+  max_reasonable_median_filing_lag: 5
+  max_unknown_role_pct_mvp_warn: 30
+  max_unknown_security_pct_warn: 5
+  extreme_filing_lag_warn: 365

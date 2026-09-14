@@ -1,0 +1,19 @@
+transaction_code,meaning,category,signal_direction,signal_quality,include_clean_mvp,requires_special_handling,economic_interpretation,notes
+P,Open market or private purchase,OPEN_MARKET,BULLISH,HIGH,true,false,Discretionary capital allocation by insider; primary alpha research signal,SEC Table 1 code P
+S,Open market or private sale,OPEN_MARKET,BEARISH_OR_NEUTRAL,MEDIUM,true,false,Discretionary sale; informative but noisier than purchases,SEC Table 1 code S
+A,Grant award or other acquisition from issuer,COMPENSATION,NONE,LOW,false,true,Compensation or plan grant; not a market-timing signal,Often RSU/option grants; exclude from MVP
+M,Exercise or conversion of derivative security,DERIVATIVE_EVENT,NONE,LOW,false,true,Mechanical derivative exercise; often paired with F or S,SEC Table 1 code M
+F,Payment of exercise price or tax liability with securities,TAX_EVENT,NONE,VERY_LOW,false,true,Tax withholding or cashless exercise mechanics; not discretionary trade,Often follows M or A
+D,Sale or transfer of securities back to issuer,CORPORATE_ACTION,NONE,VERY_LOW,false,true,Issuer repurchase or return of shares; administrative,SEC Table 1 code D
+G,Gift of securities by or to insider,TRANSFER,NONE,VERY_LOW,false,true,Non-market transfer; no price discovery,SEC Table 1 code G
+C,Conversion of derivative security,DERIVATIVE_EVENT,NONE,LOW,false,true,Structural conversion; not open-market decision,SEC Table 1 code C
+X,Exercise of in-the-money or at-the-money derivative,DERIVATIVE_EVENT,NONE,LOW,false,true,Option exercise event; may precede open-market sale,SEC Table 1 code X
+J,Other acquisition or disposition,ADMINISTRATIVE,MIXED,LOW,false,true,Catch-all; requires footnote review,SEC Table 1 code J
+L,Small acquisition under Rule 16a-6,ADMINISTRATIVE,NONE,VERY_LOW,false,true,De minimis acquisition; limited informational value,SEC Table 1 code L
+I,Discretionary transaction (discretionary account),OPEN_MARKET,MIXED,MEDIUM,false,true,May reflect manager not insider intent; review account type,SEC Table 1 code I
+U,Tender of securities in tender offer,CORPORATE_ACTION,NONE,VERY_LOW,false,true,Response to third-party or issuer tender; not discretionary open market,SEC Table 1 code U
+W,Acquisition or disposition by will or laws of descent,TRANSFER,NONE,VERY_LOW,false,true,Estate or inheritance transfer; non-economic signal,SEC Table 1 code W
+H,Expiration of short derivative position,DERIVATIVE_EVENT,NONE,VERY_LOW,false,true,Derivative expiration; mechanical,SEC Table 1 code H
+E,Expiration of long derivative position,DERIVATIVE_EVENT,NONE,VERY_LOW,false,true,Derivative expiration; mechanical,SEC Table 1 code E
+Z,Deposit into or withdrawal from voting trust,ADMINISTRATIVE,NONE,VERY_LOW,false,true,Voting trust movement; governance not investment,SEC Table 1 code Z
+O,Exercise of out-of-the-money derivative,DERIVATIVE_EVENT,NONE,VERY_LOW,false,true,Typically administrative or tax-driven exercise,SEC Table 1 code O
