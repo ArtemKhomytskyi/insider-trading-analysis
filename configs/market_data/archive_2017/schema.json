@@ -1,0 +1,14 @@
+{
+  "observed_headers": [["Date", "Open", "High", "Low", "Close", "Volume", "OpenInt"]],
+  "columns": {
+    "date": "Date",
+    "open": "Open",
+    "high": "High",
+    "low": "Low",
+    "close": "Close",
+    "volume": "Volume"
+  },
+  "price_basis": "UNKNOWN",
+  "methodology_evidence": "",
+  "review_note": "Observed in 17014 nonempty .us.txt members; 64 mirrored empty members. OpenInt is not a split/dividend field. Raw-vs-adjusted methodology is unverified."
+}

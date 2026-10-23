@@ -22,3 +22,7 @@ class DailyPrice:
     currency: str | None = None
     exchange: str | None = None
     is_adjusted: int = 1
+    adjusted_volume: float | None = None
+    split_factor: float | None = None
+    dividend_cash: float | None = None
+    adjustment_basis: str = "PROVIDER_UNSPECIFIED"

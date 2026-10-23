@@ -25,6 +25,10 @@ Thumbs.db
 # Local data (keep structure, ignore large/generated files)
 data/processed/*.db
 data/processed/*.db-journal
+data/processed/*.db-wal
+data/processed/*.db-shm
+data/processed/*.lock
+data/pilot/
 data/exports/*
 !data/exports/.gitkeep
 data/raw/sec/**/*
@@ -41,3 +45,5 @@ data/raw/sec/**/*
 # Local data archives
 data/*.zip
 data/*.7z
+data/raw/*.zip
+data/raw/*.7z

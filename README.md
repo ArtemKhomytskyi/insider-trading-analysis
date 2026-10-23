@@ -2,11 +2,13 @@
 
 Research platform for SEC insider trading filings (Forms 3, 4, and 5). The project ingests official SEC quarterly datasets, stores an immutable raw layer in SQLite, and will later support cleaning, normalization, enrichment, analytics, and scoring.
 
-## Current phase: Phase 4 — Entity Normalization
+## Current phase: Phase 5.2 — controlled historical market-data pilot preparation
+
+Phase 5.2A now includes a separate **offline-only historical archive importer**. It accepts only a manually supplied local ZIP or extracted directory, requires observed-schema review and manually approved historical identities, and writes only to a new pilot SQLite file. No archive has been downloaded or imported. See [the offline archive pilot instructions](docs/research/phase_5_2a_offline_archive_pilot.md) and [the strict $0 strategy](docs/research/phase_5_2_zero_budget_market_data_strategy.md). The candidate archive stops on 2017-11-10, its upstream market-data provenance is unresolved, and adjusted/total-return semantics must not be assumed.
 
 Phase 1.1 ingests raw SEC data. Phase 1.2 audits file headers. Phase 2 profiles the SQLite database and builds taxonomies. **Phase 3** creates `clean_insider_transactions` — a normalized, enriched table with quality flags and an MVP alpha universe marker.
 
-Market returns, alpha, insider scores, and market-data enrichment are **not** implemented yet.
+Phase 4 and Phase 5.1b production builds are validated. Phase 5.2 has an isolated pilot path; no production price download has been run. Returns, alpha, and insider scores are not implemented yet.
 
 ## Expected raw folder structure
 
@@ -603,6 +605,96 @@ python -m src.analytics.validate_market_data
 ```
 
 Phase 5 explicitly guards against look-ahead bias, survivorship bias, current-ticker bias, silent delisting exclusion, and corporate-action return distortion. Lower trustworthy coverage is preferred over falsely high coverage from guessed mappings.
+
+### Phase 5.2 Yahoo Finance experiment (current MVP)
+
+The ten-security Yahoo pilot is isolated from `src.market_data.download_market_data`. That production downloader and its `YahooProvider` placeholder are unchanged. The pilot reads `security_identifier_mapping` from the production SQLite file with a read-only immutable connection, and writes prices only to a separate pilot database. Selection does not contact Yahoo.
+
+```powershell
+.\.venv\Scripts\python.exe -m src.market_data.yahoo_pilot select --source-db data/processed/insider_research.db --manifest data/exports/market_data/yahoo_pilot_10_manifest.csv
+```
+
+The selection contains ten accepted mapping IDs, split between earlier and later periods and between ticker-change and other cases. It excludes known ticker reuse across issuer CIKs. The CSV includes the SEC ticker, translated Yahoo symbol, issuer CIK, observed interval, mapping confidence, and risk flags. Every row starts `PENDING`; `company_name_hint` is the latest SEC-derived name, not proof of identity at the interval. Before a run, independently verify the historical issuer, share class, Yahoo symbol, and ticker-change/delisting history for each row. Record the source in `identity_evidence` and mark only confirmed rows `APPROVED`. Matching ticker strings alone is insufficient. The run rechecks mapping IDs, CIKs, intervals, and known reuse against the read-only production mapping before any Yahoo call. Yahoo exposes no durable security identifier through this adapter, so a recycled ticker with plausible history remains a research risk.
+
+The optional dependency is `yfinance` in `requirements.txt`; version 0.2.66 is installed in the existing project `.venv`. If rebuilding that environment, install it with `.\.venv\Scripts\python.exe -m pip install "yfinance>=0.2.66,<1.0"`. Synthetic tests do not contact Yahoo.
+
+The [yfinance project](https://github.com/ranaroussi/yfinance/blob/main/README.md) describes the Yahoo Finance API as intended for personal use and directs users to Yahoo's terms. Review the [Yahoo terms](https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html) for the intended research use before any retrieval, storage, sharing, or automated schedule. There is no licensed research feed, uptime promise, stable historical identifier, or confirmed delisted coverage. Data availability and corporate-action history must be measured by the pilot rather than assumed.
+
+After identity review and separate approval for external access, the exact bounded command is:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.market_data.yahoo_pilot run --source-db data/processed/insider_research.db --manifest data/exports/market_data/yahoo_pilot_10_manifest.csv --pilot-db data/pilot/yahoo_pilot_10.db --start-date 2003-01-01 --end-date 2026-10-15 --rate-limit-seconds 2
+.\.venv\Scripts\python.exe -m src.market_data.validate_pilot --pilot-db data/pilot/yahoo_pilot_10.db --out-dir data/exports/market_data/yahoo_pilot_10_validation
+```
+
+The manifest caps the run at ten identities. There is at most one retry per security, so the code invokes `history()` at most 20 times in a run; `yfinance` may make multiple underlying HTTP requests per invocation, so this is not an HTTP-request quota guarantee. Requests are sequential and clipped to the SEC-observed mapping intervals. The start date is inclusive; the adapter adds one calendar day to the inclusive end because `yfinance` treats `end` as exclusive. Completed intervals are skipped on rerun. Empty history is `NO_DATA`, exceptions become `FAILED` after retry, and rows outside the interval or large boundary gaps become `PARTIAL`. These statuses fail validation. The pilot never substitutes a current ticker for an unrecognized historical symbol.
+
+`history(auto_adjust=False, actions=True, repair=False, interval="1d")` stores raw Open/High/Low/Close/Volume, vendor `Adj Close`, daily Dividends, and Stock Splits. It does not fabricate adjusted OHLC or adjusted volume. Yahoo reports zero split/dividend values on ordinary days; missing action columns or nonfinite data cause a failed request. Vendor `Adj Close` is recorded under `YAHOO_ADJ_CLOSE_VENDOR` and must not be mixed with raw OHLC as though they share an adjustment basis. The exact vendor adjustment chain and historical corrections are not independently verified. The pilot validator reports missing series, incomplete intervals, gaps, suspicious jumps, missing action fields, and identity flags. No events observed is a warning, not evidence that corporate actions never occurred. Delisting returns, mergers, and event-time forward returns remain unresolved research work.
+
+The original ten-row pilot remains **NO-GO for download** because three rows were rejected and one needs review. Full-universe ingestion remains NO-GO.
+
+#### Focused five-security preparation (no download yet)
+
+The separately preserved `data/exports/market_data/yahoo_pilot_5_manifest.csv` contains only independently verified `NFLX`, `CRM`, `GTM`, `BKNG`, and `TSLA` rows; all remain `PENDING`. The original ten-row manifest is unchanged. [Identity evidence](data/exports/market_data/yahoo_pilot_10_identity_verification.md) establishes the issuer/ticker relationships. [Phase 5.1 QA findings](data/exports/security_mapping/phase_5_1_identity_qa_findings.md) quarantine `NLFX`, premature `HLIO`, and pre-IPO `CRWV` mappings without modifying production data.
+
+The five SEC-observed intervals are `NFLX` 2006-01-05–2026-03-02, `CRM` 2005-02-01–2019-08-05, `GTM` 2025-05-14–2026-03-22, `BKNG` 2018-03-04–2026-03-16, and `TSLA` 2017-02-01–2026-03-06. `run_pilot` intersects a requested date window with each row's interval before calling the Yahoo adapter; a nonoverlapping row makes no request. Responses outside that intersection are not persisted and mark the request `PARTIAL`. The adapter passes an exclusive `end` one calendar day after the clipped inclusive end. A five-row approved manifest therefore permits at most **five `history()` calls without retries or ten with the one permitted retry**; internal HTTP requests made by yfinance are not bounded by that count. An all-`PENDING` manifest fails the review gate before any Yahoo call.
+
+Only after separate approval of each row and of Yahoo usage, fill `identity_evidence` and set the chosen rows to `APPROVED` in a reviewed copy of the five-row manifest. The future live command would be:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.market_data.yahoo_pilot run --source-db data/processed/insider_research.db --manifest data/exports/market_data/yahoo_pilot_5_manifest.csv --pilot-db data/pilot/yahoo_pilot_5.db --start-date 2005-02-01 --end-date 2026-03-22 --rate-limit-seconds 2
+.\.venv\Scripts\python.exe -m src.market_data.validate_pilot --pilot-db data/pilot/yahoo_pilot_5.db --out-dir data/exports/market_data/yahoo_pilot_5_validation
+```
+
+Do not run these commands while approval remains `PENDING`. Identity verification does not establish Yahoo's coverage, corporate-action correctness, or suitability under Yahoo's terms; this phase remains **NO-GO for external retrieval**.
+
+The local regression command is `.\.venv\Scripts\python.exe -m pytest -q --basetemp .pytest_phase52_run_01` (choose a fresh workspace-local basetemp path for each run on Windows). The 2026-10-16 preparation run passed all 164 tests; no Yahoo market-data request was made.
+
+### Legacy Tiingo pilot (inactive)
+
+The original `download_market_data` entry point is infrastructure only and must not be used for the pilot: it can select all mapped tickers and writes to the production database. The isolated pilot uses `src.market_data.pilot` and a separate SQLite file. It reads the production mapping database in read-only mode to create a 200-security manifest. No API is called by selection.
+
+```powershell
+python -m src.market_data.pilot select --source-db data/processed/insider_research.db --manifest data/exports/market_data/pilot_manifest.csv --count 200
+```
+
+Generate the row-level audit, then review every manifest row against provider metadata and the historical issuer, ticker, share class, ticker-change and corporate-action history:
+
+```powershell
+python -m src.market_data.audit_pilot_manifest --manifest data/exports/market_data/pilot_manifest.csv --source-db data/processed/insider_research.db --out data/exports/market_data/pilot_identity_audit.csv
+```
+
+Fill `verified_provider_name` with the exact Tiingo EOD metadata name reviewed for that security, verify `provider_ticker` (Tiingo uses a dash in share-class symbols), and change `review_status` from `PENDING` to `APPROVED` only after confirming the vendor symbol identifies the same security in that interval. The program rejects unapproved rows, blank reviewed names, repeated vendor symbols, and mismatched live metadata. Ambiguous and known reused SEC tickers are excluded automatically. The selection balances early/late observations and ticker-change cases. It **cannot verify sector, liquidity, delisting, merger, or share class** because these fields are absent or uncertain in the SEC-derived mapping. Add or replace cases manually if those strata are required. `is_delisted` in Phase 5.1 means "not the latest observed ticker," not confirmed exchange delisting. `security_class` is currently null. A recycled ticker with the same issuer name could still escape this check; a stable vendor security ID or independent point-in-time reference is needed for stronger assurance.
+
+This legacy design is retained for reference. The project has no Tiingo subscription or API key, and this is not the active MVP path. The production Yahoo and Polygon/Massive adapters remain placeholders; only the separate Yahoo pilot adapter above is enabled for the experimental path. Tiingo's vendor symbol is still a ticker; `provider_security_id` is reserved for a verified durable vendor identifier, and remains null until one is available. Do not join a pre/post-change or merger series automatically.
+
+Provider assessment (documentation reviewed October 2026; no live account verification):
+
+| Provider | Documented strengths | Pilot limitation |
+| --- | --- | --- |
+| [Tiingo EOD](https://www.tiingo.com/documentation/end-of-day) | Historical raw and split/dividend adjusted OHLCV, daily split factor and cash dividend | [Symbology guidance](https://www.tiingo.com/documentation/appendix/symbology) says delisted data applies to tickers not yet recycled; durable price-series identity and account-specific coverage must be verified. Hourly/daily limits depend on account. |
+| [Massive (formerly Polygon)](https://massive.com/docs/rest/stocks/overview) | Point-in-time ticker reference, split events, dividends and historical bars | [Aggregate bars are split-adjusted, not dividend-adjusted](https://massive.com/knowledge-base/article/is-massives-stock-data-adjusted-for-splits-or-dividends); total-return construction needs an additional corporate-action process. [Ticker events](https://massive.com/docs/rest/stocks/corporate-actions/ticker-events) are experimental and currently list ticker changes; subscription access requires verification. |
+| Yahoo Finance | Separate ten-security experiment described above | Historical delisting, ticker identity, adjustment policy, limits, and research reproducibility remain unverified. |
+
+After approval and manifest review, run only the selected sample:
+
+```powershell
+$env:TIINGO_API_KEY = '<key supplied outside the repository>'
+python -m src.market_data.pilot run --manifest data/exports/market_data/pilot_manifest.csv --pilot-db data/pilot/market_pilot.db --start-date 2006-01-01 --end-date 2025-12-31 --rate-limit-seconds 1
+python -m src.market_data.validate_pilot --pilot-db data/pilot/market_pilot.db --out-dir data/exports/market_data/pilot_validation
+```
+
+Each price request is clipped to the observed mapping interval. The run permits at most 200 reviewed symbols and two retries per operation. It makes one Tiingo EOD metadata request and one price request per eligible symbol, so the upper bound is **1,200 API requests** (400 first attempts plus 800 possible retries); mismatched or unknown metadata stops before prices. At one second between symbols, intentional pacing adds about 200 seconds; server time and retry backoff add more. Twenty years of daily prices has a rough upper bound near 1 million rows for 200 symbols (roughly 5,000 sessions each), but interval clipping should reduce it. Actual usage and data volume depend on the reviewed manifest and vendor coverage. The pilot database is separate from the 30 GB SEC database. Repeating the same completed request skips the API. Changing the requested window creates a new request and upserts overlapping dates by `(security_id, provider, trading_date)`.
+
+The documented Tiingo EOD endpoint returns the requested date window as one JSON list; no pagination contract is documented. The adapter checks required fields and duplicate dates. A response whose first/last date does not reach the metadata-overlapping interval (seven-calendar-day tolerance for nontrading days) is recorded `PARTIAL`; internal gaps are flagged by validation. `UNKNOWN_SYMBOL` (404) and `IDENTITY_REVIEW` (metadata name/ticker mismatch) stop before a price request, store no prices for that symbol, and fail validation. Other request or parse errors are retried twice and then recorded `FAILED`; an empty valid response is `NO_DATA`. Since metadata is a current vendor snapshot, this is a guard, not proof of point-in-time identity.
+
+Pilot data stores raw OHLCV separately from Tiingo `adjOpen`, `adjHigh`, `adjLow`, `adjClose`, and `adjVolume`, plus `splitFactor` and `divCash` where returned. The `adjustment_basis` field records that Tiingo's adjusted series includes split and dividend adjustments. Raw OHLC must be checked against raw OHLC only; adjusted fields must be compared within their own basis. Split factor and dividend cash are observations, not a complete merger/delisting return model. The older `market_prices_daily` table has only `(symbol, date, provider)` identity and is unsuitable for this pilot's historical identity checks. No production migration is performed.
+
+The pilot validator writes `pilot_validation_summary.csv` (PASS/WARN/FAIL) and `pilot_security_diagnostics.csv`. It checks duplicates, raw OHLC, prices, volume, identity, adjustment basis, corporate-action values, provider outcomes, long calendar gaps, large adjusted-price jumps, rough date coverage, and available series length for 5/20/60/120-session horizons. Calendar-gap and coverage checks are screening heuristics; holidays, halts, IPOs, ticker changes, and delistings need human review. A complete request status means the response passed the boundary checks and was persisted; it does not certify full trading-calendar coverage. Readiness by series length does not prove that a particular filing has the full forward horizon.
+
+For event-study returns, use SEC filing **acceptance timestamp**, not transaction date, to determine when information became public. An after-close or non-trading-day acceptance enters no earlier than the next eligible trading session; an intraday acceptance needs a conservative executable entry rule. Then measure 5, 20, 60, and 120 subsequent trading sessions on the same adjusted-price basis, using a point-in-time benchmark for excess returns. Preserve missing forward windows and terminal delisting outcomes rather than dropping them. Verify exchange calendars and provider correction timing. This event-time join and return calculation are future work.
+
+Full-universe ingestion remains **NO-GO** until identity review, vendor entitlement/cost approval, pilot QA with no unresolved FAIL conditions, coverage stratified by era and known delistings, documented corporate-action reconciliation, and a defensible treatment of ticker changes, mergers, and missing terminal returns. The pilot itself is ready for manual manifest review and explicit approval before the first external API call.
 
 ## Tests
 

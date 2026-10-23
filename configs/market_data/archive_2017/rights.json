@@ -1,0 +1,9 @@
+{
+  "source_url": "https://www.kaggle.com/datasets/borismarjanovic/price-volume-data-for-all-us-stocks-etfs",
+  "license_label": "CC0: Public Domain (uploader's dataset-page claim; not independently cleared)",
+  "provenance_limitations": "Upstream market-data source and uploader's authority to license those price records remain unverified. This is an offline exploratory pilot only; no raw redistribution or total-return publication is approved.",
+  "reviewed_at": "2026-10-16",
+  "local_archive": "data/raw/archive(1).zip",
+  "archive_sha256": "d9317c8fb2d63b9b00db5f933b6c9639d2bf7ea3b918169bb5cec5903dce85a1",
+  "owner_acceptance": "Owner explicitly authorized private local noncommercial exploratory import of only NFLX, CRM, and TSLA on 2026-10-16, accepting unresolved upstream provenance risk. No external retrieval, redistribution, return/alpha computation, or broader-universe use authorized. This does not verify upstream licensing."
+}
