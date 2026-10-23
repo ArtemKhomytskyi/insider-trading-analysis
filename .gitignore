@@ -47,3 +47,5 @@ data/*.zip
 data/*.7z
 data/raw/*.zip
 data/raw/*.7z
+
+.pytest_tmp*/
